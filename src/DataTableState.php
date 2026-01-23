@@ -105,13 +105,12 @@ final class DataTableState
     {
         if ($parameters->has('order')) {
             $this->orderBy = [];
-            foreach ($parameters->all()['order'] ?? [] as $order) {
-                try {
-                    $column = $this->getDataTable()->getColumn((int) $order['column']);
-                    $this->addOrderBy($column, $order['dir'] ?? DataTable::SORT_ASCENDING);
-                } catch (\Throwable $t) {
-                    // Column index and direction can be corrupted by malicious clients, ignore any exceptions thus caused
-                }
+            $orders = $parameters->all('order') ?: [];
+            $columns = $parameters->all('columns') ?: [];
+            foreach ($orders as $order) {
+                $columnName = $columns[$order['column']]['data'];
+                $column = $this->getDataTable()->getColumnByName($columnName);
+                $this->addOrderBy($column, $order['dir'] ?? DataTable::SORT_ASCENDING);
             }
         }
     }
