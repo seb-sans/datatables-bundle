@@ -38,13 +38,16 @@ class AutomaticQueryBuilder implements QueryBuilderProcessorInterface
     /** @var array<string, string[]> */
     private array $joins = [];
 
+    private string $prefix = '';
+
     /**
      * @param ClassMetadata<object> $metadata
      */
-    public function __construct(EntityManagerInterface $em, ClassMetadata $metadata)
+    public function __construct(EntityManagerInterface $em, ClassMetadata $metadata, string $prefix = '')
     {
         $this->em = $em;
         $this->metadata = $metadata;
+        $this->prefix = $prefix;
 
         $this->entityName = $this->metadata->getName();
         $this->entityShortName = mb_strtolower($metadata->reflClass?->getShortName() ?? self::DEFAULT_ALIAS);
