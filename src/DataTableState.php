@@ -98,6 +98,7 @@ final class DataTableState
 
         $this->handleOrderBy($parameters);
         $this->handleSearch($parameters);
+        $this->handleColumns($parameters);
     }
 
     private function handleOrderBy(ParameterBag $parameters): void
@@ -126,6 +127,19 @@ final class DataTableState
             // unreliable.
             if ('' !== mb_trim($value)) {
                 $this->setColumnSearch($column, $value);
+            }
+        }
+    }
+
+    private function handleColumns(ParameterBag $parameters)
+    {
+        $columns = $parameters->all('columns') ?: [];
+        foreach ($columns as $key => $options) {
+            // Very important to getByName because not sorted the same way so $key won't match
+            $column = $this->dataTable->getColumnByName($options['data']);
+            if (isset($options['visible'])) {
+                $column->setOption('visible', $options['visible'] == 'true');
+                $this->orderedColumns[] = $column;
             }
         }
     }

@@ -64,8 +64,6 @@ class OxomORMAdapter extends ORMAdapter
         $query->setFilteredRows($this->getCount($builder, $identifier));
 
         if ($state->getShowSummary()) {
-            dump('showSummary');
-
             //
             // Complex but working better
             //

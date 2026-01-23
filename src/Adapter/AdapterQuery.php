@@ -58,7 +58,6 @@ class AdapterQuery
 
     public function setTotalSummary(array $totalSummary): self
     {
-        dump($totalSummary);
         $this->totalSummary = $totalSummary;
 
         return $this;

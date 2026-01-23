@@ -15,7 +15,7 @@
     $.fn.initDataTables = function(config, options) {
 
         //Update default used url, so it reflects the current location (useful on single side apps)
-        $.fn.initDataTables.defaults.url = window.location.origin + window.location.pathname + window.location.search;
+        $.fn.initDataTables.defaults.url = window.location.origin + window.location.pathname;
 
         var root = this,
             config = $.extend({}, $.fn.initDataTables.defaults, config),
@@ -23,33 +23,16 @@
         ;
 
         // Load page state if needed
-        var stateDuration = null
-        // Load page state if needed
         switch (config.state) {
             case 'fragment':
                 state = window.location.hash;
-                state = (state.length > 1 ? deparam(state.substring(1)) : {});
                 break;
             case 'query':
                 state = window.location.search;
-                state = (state.length > 1 ? deparam(state.substring(1)) : {});
-                break;
-            case 'local':
-                stateDuration = 0
-                if (localStorage.getItem('DataTables_' + config.name + '_' + window.location.pathname) !== null) {
-                    state = JSON.parse(localStorage.getItem('DataTables_' + config.name + '_' + window.location.pathname))
-                }
-                break;
-            case 'session':
-                stateDuration = -1
-                if (sessionStorage.getItem('DataTables_' + config.name + '_' + window.location.pathname) !== null) {
-                    state = JSON.parse(sessionStorage.getItem('DataTables_' + config.name + '_' + window.location.pathname))
-                }
                 break;
         }
-
-        var persistOptions = config.state === 'none' ? {} : {
-            stateDuration: stateDuration,
+        state = (state.length > 1 ? deparam(state.substr(1)) : {});
+        var persistOptions = {
             stateSave: true,
             stateLoadCallback: function(s, cb) {
                 // Only need stateSave to expose state() function as loading lazily is not possible otherwise
@@ -85,9 +68,9 @@
                             data = null;
                             if (Object.keys(state).length) {
                                 var api = new $.fn.dataTable.Api( settings );
-                                var merged = Object.assign({}, api.state(), state)
+                                var merged = $.extend(true, {}, api.state(), state);
                                 api
-                                    .order(Array.isArray(merged.order) && merged.order.length > 0 ? merged.order : api.state().order)
+                                    .order(merged.order)
                                     .search(merged.search.search)
                                     .page.len(merged.length)
                                     .page(merged.start / merged.length)
@@ -115,7 +98,7 @@
                                 request.columns[i].visible = typeof st.columns[colIndex] !== "undefined" && typeof st.columns[colIndex].visible !== 'undefined' && st.columns[colIndex].visible;
                             }
 
-                            $.ajax(typeof config.url === 'function' ? config.url(dt) : config.url, {
+                            $.ajax(typeof config.url === 'function' ? config.url($(this).DataTable()) : config.url, {
                                 method: config.method,
                                 data: request
                             }).done(function(data) {
@@ -135,10 +118,11 @@
                 }
 
                 root.html(data.template);
-                var dt = $('table', root).DataTable(dtOpts);
+                dt = $('table', root).first().DataTable(dtOpts);
                 if (config.state !== 'none') {
                     dt.on('draw.dt', function(e) {
                         var data = $.param(dt.state()).split('&');
+
                         // First draw establishes state, subsequent draws run diff on the first
                         if (!baseState) {
                             baseState = data;
@@ -150,13 +134,8 @@
                                         + '#' + decodeURIComponent(diff.join('&')));
                                     break;
                                 case 'query':
-                                    var windowLocationSearch = deparam(decodeURIComponent(diff.join('&')))
-                                    if(window.location.search !== null) {
-                                        windowLocationSearch = deparam(window.location.search.substring(1))
-                                        Object.assign(windowLocationSearch, deparam(decodeURIComponent(diff.join('&'))))
-                                    }
                                     history.replaceState(null, null, window.location.origin + window.location.pathname
-                                        + '?' + decodeURIComponent($.param(windowLocationSearch) + window.location.hash));
+                                        + '?' + decodeURIComponent(diff.join('&') + window.location.hash));
                                     break;
                             }
                         }
@@ -183,11 +162,14 @@
     /**
      * Server-side export.
      */
-    $.fn.initDataTables.exportBtnAction = function(exporterName, settings) {
+    $.fn.initDataTables.exportBtnAction = function(selected, exporterName, settings) {
         settings = $.extend({}, $.fn.initDataTables.defaults, settings);
 
         return function(e, dt) {
-            const params = $.param($.extend({}, dt.ajax.params(), {'_dt': settings.name, '_exporter': exporterName}));
+            // Very important to recalculate column ordering => params.columns is now ordered after this call
+            dt.draw(false);
+
+            var params = $.extend({}, dt.ajax.params(), {'_dt': settings.name, '_exporter': exporterName})
 
             // Column visibility
             var state = dt.state();
@@ -225,10 +207,15 @@
 
             // Credit: https://stackoverflow.com/a/23797348
             const xhr = new XMLHttpRequest();
-            xhr.open(settings.method, settings.method === 'GET' ? (settings.url + '?' +  params) : settings.url, true);
+            xhr.open(settings.method, settings.method === 'GET' ? (settings.url + '?' + paramString) : settings.url, true);
             xhr.responseType = 'arraybuffer';
             xhr.onload = function () {
                 if (this.status === 200) {
+
+                    setTimeout(function() {
+                        dialog.modal('hide');
+                    }, 1000);
+
                     let filename = "";
                     const disposition = xhr.getResponseHeader('Content-Disposition');
                     if (disposition && disposition.indexOf('attachment') !== -1) {
@@ -252,33 +239,39 @@
                         blob = new Blob([this.response], { type: type });
                     }
 
-                    const URL = window.URL || window.webkitURL;
-                    const downloadUrl = URL.createObjectURL(blob);
-
-                    if (filename) {
-                        // use HTML5 a[download] attribute to specify filename
-                        const a = document.createElement("a");
-                        // safari doesn't support this yet
-                        if (typeof a.download === 'undefined') {
-                            window.location = downloadUrl;
-                        }
-                        else {
-                            a.href = downloadUrl;
-                            a.download = filename;
-                            document.body.appendChild(a);
-                            a.click();
-                        }
+                    if (typeof window.navigator.msSaveBlob !== 'undefined') {
+                        // IE workaround for "HTML7007: One or more blob URLs were revoked by closing the blob for which they were created. These URLs will no longer resolve as the data backing the URL has been freed."
+                        window.navigator.msSaveBlob(blob, filename);
                     }
                     else {
-                        window.location = downloadUrl;
-                    }
+                        const URL = window.URL || window.webkitURL;
+                        const downloadUrl = URL.createObjectURL(blob);
 
-                    setTimeout(function() { URL.revokeObjectURL(downloadUrl); }, 100); // cleanup
+                        if (filename) {
+                            // use HTML5 a[download] attribute to specify filename
+                            const a = document.createElement("a");
+                            // safari doesn't support this yet
+                            if (typeof a.download === 'undefined') {
+                                window.location = downloadUrl;
+                            }
+                            else {
+                                a.href = downloadUrl;
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                            }
+                        }
+                        else {
+                            window.location = downloadUrl;
+                        }
+
+                        setTimeout(function() { URL.revokeObjectURL(downloadUrl); }, 100); // cleanup
+                    }
                 }
             };
 
             xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-            xhr.send(settings.method === 'POST' ? params : null);
+            xhr.send(settings.method === 'POST' ? paramString : null);
         }
     };
 
@@ -297,8 +290,8 @@
                 keys = key.split(']['),
                 keys_last = keys.length - 1;
 
-            if (/\[/.test(keys[0]) && /]$/.test(keys[keys_last])) {
-                keys[keys_last] = keys[keys_last].replace(/]$/, '');
+            if (/\[/.test(keys[0]) && /\]$/.test(keys[keys_last])) {
+                keys[keys_last] = keys[keys_last].replace(/\]$/, '');
                 keys = keys.shift().split('[').concat(keys);
                 keys_last = keys.length - 1;
             } else {

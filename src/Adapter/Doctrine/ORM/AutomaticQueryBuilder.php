@@ -50,6 +50,11 @@ class AutomaticQueryBuilder implements QueryBuilderProcessorInterface
         $this->entityShortName = mb_strtolower($metadata->reflClass?->getShortName() ?? self::DEFAULT_ALIAS);
     }
 
+    public function setEntityShortName(string $entityShortName): void
+    {
+        $this->entityShortName = $entityShortName;
+    }
+
     public function process(QueryBuilder $builder, DataTableState $state): void
     {
         if (empty($this->selectColumns) && empty($this->joins)) {

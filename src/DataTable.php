@@ -59,6 +59,12 @@ class DataTable
         'orderCellsTop' => true,
         'stateSave' => false,
         'fixedHeader' => false,
+        'colReorder' => true,
+        'select' => [
+            'info' => false,
+            'style' => 'multi',
+            'selector' => 'td:first-child .custom-control-input',
+        ],
     ];
 
     public const DEFAULT_TEMPLATE = '@DataTables/datatable_html.html.twig';
