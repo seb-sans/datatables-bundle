@@ -28,6 +28,7 @@ class ResultSet implements ResultSetInterface
         private readonly \Iterator $data,
         private readonly int $totalRows,
         private readonly int $totalFilteredRows,
+        private readonly ?string $error = null, private readonly array $totalSummary = []
     ) {
     }
 
@@ -44,5 +45,15 @@ class ResultSet implements ResultSetInterface
     public function getData(): \Iterator
     {
         return $this->data;
+    }
+
+    public function getError(): ?string
+    {
+        return $this->error;
+    }
+
+    public function getTotalSummary(): \Iterator
+    {
+        return new \ArrayIterator($this->totalSummary);
     }
 }

@@ -29,6 +29,9 @@ return static function (ContainerConfigurator $container) {
     $services->set(\Omines\DataTablesBundle\Adapter\Doctrine\FetchJoinORMAdapter::class)
         ->args([service('doctrine')->nullOnInvalid()]);
 
+    $services->set(\Omines\DataTablesBundle\Adapter\Doctrine\OxomORMAdapter::class)
+        ->args([service('doctrine')->nullOnInvalid()]);
+
     $services->set(\Omines\DataTablesBundle\Column\TwigColumn::class)
         ->args([service('twig')->nullOnInvalid()]);
 

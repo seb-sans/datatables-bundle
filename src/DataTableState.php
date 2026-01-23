@@ -38,6 +38,14 @@ final class DataTableState
     private bool $isCallback = false;
     private ?string $exporterName;
 
+    /* seb-sans */
+    private ?string $batchAction = null;
+    private ?string $batchActionPrompt = null;
+    private array $batchIds = [];
+    private bool $showSummary = false;
+    private string $dql = '';
+    private array $orderedColumns = [];
+
     /**
      * DataTableState constructor.
      */
@@ -71,6 +79,11 @@ final class DataTableState
         $this->isCallback = true;
         $this->isInitial = $parameters->getBoolean('_init', false);
         $this->exporterName = $parameters->get('_exporter');
+        $this->batchAction = $parameters->get('_batchAction');
+        $this->batchActionPrompt = $parameters->get('_batchActionPrompt');
+        $this->batchIds = $parameters->all('_batchIds');
+        $this->showSummary = $parameters->getBoolean('_showSummary', false);
+        $this->dql = $parameters->get('_dql') ?? '';
 
         $this->start = (int) $parameters->get('start', $this->start);
         $this->length = (int) $parameters->get('length', $this->length);
@@ -242,5 +255,37 @@ final class DataTableState
     public function isExport(): bool
     {
         return null !== $this->exporterName;
+    }
+
+    /* seb-sans */
+
+    public function getBatchAction(): ?string
+    {
+        return $this->batchAction;
+    }
+
+    public function getBatchActionPrompt(): ?string
+    {
+        return $this->batchActionPrompt;
+    }
+
+    public function getBatchIds(): array
+    {
+        return $this->batchIds;
+    }
+
+    public function getShowSummary(): bool
+    {
+        return $this->showSummary;
+    }
+
+    public function getDQL(): string
+    {
+        return $this->dql ?: '';
+    }
+
+    public function getOrderedColumns(): array
+    {
+        return $this->orderedColumns;
     }
 }

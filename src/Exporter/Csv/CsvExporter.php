@@ -38,6 +38,9 @@ class CsvExporter extends AbstractDataTableExporter
 
         fclose($file);
 
+        // convert to UTF-16LE
+        file_put_contents($filePath, chr(255).chr(254).mb_convert_encoding(file_get_contents($filePath), 'UTF-16LE', 'UTF-8'));
+
         return new \SplFileInfo($filePath);
     }
 

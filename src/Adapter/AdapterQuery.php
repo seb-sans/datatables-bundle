@@ -23,6 +23,7 @@ use Omines\DataTablesBundle\DataTableState;
 class AdapterQuery
 {
     private ?int $totalRows;
+    private array $totalSummary = [];
     private ?int $filteredRows;
     private ?string $identifierPropertyPath = null;
 
@@ -46,6 +47,19 @@ class AdapterQuery
     public function setTotalRows(?int $totalRows): static
     {
         $this->totalRows = $totalRows;
+
+        return $this;
+    }
+
+    public function getTotalSummary(): array
+    {
+        return $this->totalSummary;
+    }
+
+    public function setTotalSummary(array $totalSummary): self
+    {
+        dump($totalSummary);
+        $this->totalSummary = $totalSummary;
 
         return $this;
     }

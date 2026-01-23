@@ -12,6 +12,9 @@ declare(strict_types=1);
 
 namespace Omines\DataTablesBundle;
 
+use App\Oxom\DatatableBundle\Datatable\Type\BaseDatatableType;
+use App\Oxom\DatatableBundle\Entity\Configuration;
+use Doctrine\ORM\EntityManagerInterface;
 use Omines\DataTablesBundle\Adapter\AdapterInterface;
 use Omines\DataTablesBundle\Adapter\ResultSetInterface;
 use Omines\DataTablesBundle\Column\AbstractColumn;
@@ -22,6 +25,7 @@ use Omines\DataTablesBundle\Exception\InvalidArgumentException;
 use Omines\DataTablesBundle\Exception\InvalidConfigurationException;
 use Omines\DataTablesBundle\Exception\InvalidStateException;
 use Omines\DataTablesBundle\Exporter\DataTableExporterManager;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -91,6 +95,13 @@ class DataTable
     private DataTableRendererInterface $renderer;
     private ?DataTableState $state = null;
     private Instantiator $instantiator;
+
+    /*************************************** seb-sans *****************************************************************/
+
+    private \App\Oxom\DatatableBundle\Entity\Datatable $oxomDatatable;
+    private Configuration $configuration;
+    protected ?DataTableTypeInterface $type = null;
+    private array $batchActions = [];
 
     /**
      * @param array<string, mixed> $options
@@ -291,6 +302,22 @@ class DataTable
 
         $state = $this->getState();
 
+        if ($this->state->getBatchAction()) {
+            $batchAction = $this->getBatchActions()[$this->state->getBatchAction()];
+            $ids = [];
+            if (isset($batchAction['withoutSelection']) && $batchAction['withoutSelection']) {
+                // keep ids empty
+            } else {
+                $ids = $this->state->getBatchIds();
+                if (!$ids) {
+                    $builder = $this->getAdapter()->createQueryBuilder($this->state);
+                    $this->getAdapter()->buildCriteria($builder, $this->state);
+                    $ids = $this->getAdapter()->getIds($builder);
+                }
+            }
+            return $batchAction['callback']($ids, $this->state->getBatchActionPrompt());
+        }
+
         // Server side export
         if (null !== $state->getExporterName()) {
             $response = $this->exporterManager
@@ -306,8 +333,10 @@ class DataTable
         $response = [
             'draw' => $state->getDraw(),
             'recordsTotal' => $resultSet->getTotalRecords(),
+            'recordsSummary' => $resultSet->getTotalSummary(),
             'recordsFiltered' => $resultSet->getTotalDisplayRecords(),
             'data' => iterator_to_array($resultSet->getData()),
+            'error' => $resultSet->getError(),
         ];
         if ($state->isInitial()) {
             $response['options'] = $this->getInitialResponse();
@@ -315,6 +344,11 @@ class DataTable
         }
 
         $this->eventDispatcher->dispatch(new DataTablePostResponseEvent($this), DataTableEvents::POST_RESPONSE);
+
+        // Avoid "Malformed UTF-8 characters, possibly incorrectly encoded"
+        foreach ($response['data'] as $key => $value) {
+            $response['data'][$key] = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+        }
 
         return new JsonResponse($response);
     }
@@ -324,7 +358,7 @@ class DataTable
      */
     protected function getInitialResponse(): array
     {
-        return array_merge($this->getOptions(), [
+        $options = array_merge($this->getOptions(), [
             'columns' => array_map(
                 function (AbstractColumn $column) {
                     return [
@@ -337,6 +371,39 @@ class DataTable
                 }, $this->getColumns()
             ),
         ]);
+
+        //
+        // Search
+        //
+        $options['search'] = [
+            'search' => $this->getConfiguration()->getSearch(),
+            'regexp' => true
+        ];
+
+        //
+        // colReorder
+        //
+        $order = [];
+        if (isset($this->columnsByName[BaseDatatableType::COLUMN_IDENTIFIER_SELECTOR])) {
+            $order[] = $this->columnsByName[BaseDatatableType::COLUMN_IDENTIFIER_SELECTOR]->getIndex();
+        }
+        foreach ($this->getConfiguration()->getColumns() as $columnIdentifier) {
+            if (isset($this->columnsByName[$columnIdentifier])) {
+                $order[] = $this->columnsByName[$columnIdentifier]->getIndex();
+            }
+        }
+        foreach ($this->columns as $idx => $column) {
+            if (!in_array($idx, $order)) {
+                $order[] = $idx;
+            }
+        }
+        $this->getConfiguration()->getColumns();
+        $options['colReorder'] = [
+            'realtime' => false,
+            'fixedColumnsLeft' => 1,
+            'order' => $order
+        ];
+        return $options;
     }
 
     protected function getResultSet(): ResultSetInterface
@@ -454,4 +521,126 @@ class DataTable
 
         return $this;
     }
+
+    /*************************************** seb-sans *****************************************************************/
+
+    public function getOxomDatatable(): \App\Oxom\DatatableBundle\Entity\Datatable
+    {
+        return $this->oxomDatatable;
+    }
+
+    public function setOxomDatatable(\App\Oxom\DatatableBundle\Entity\Datatable $datatable): static
+    {
+        $this->oxomDatatable = $datatable;
+        return $this;
+    }
+
+    public function getConfiguration(): Configuration
+    {
+        return $this->configuration;
+    }
+
+    public function setConfiguration(Configuration $configuration): static
+    {
+        $this->configuration = $configuration;
+        return $this;
+    }
+
+    public function getType(): ?DataTableTypeInterface
+    {
+        return $this->type;
+    }
+
+    public function setType(DataTableTypeInterface $type): self
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
+    public function getBatchActions(): array
+    {
+        return $this->batchActions;
+    }
+
+    public function setBatchActions(array $batchActions): static
+    {
+        $this->batchActions = $batchActions;
+        return $this;
+    }
+
+    public function getGroupedBatchActions(): array
+    {
+        $result = [
+            'groups' => [
+                0 => []
+            ],
+            'dropdown' => [],
+        ];
+
+        foreach ($this->batchActions as $actionIdentifier => $batchAction) {
+            if (isset($batchAction['dropdown']) && $batchAction['dropdown']) {
+                $result['dropdown'][$actionIdentifier] = $batchAction;
+                continue;
+            }
+
+            $groupIdentifier = isset($batchAction['group']) ? intval($batchAction['group']) : 0;
+            if (!isset($result['groups'][$groupIdentifier])) {
+                $result['groups'][$groupIdentifier] = [];
+            }
+
+            $result['groups'][$groupIdentifier][$actionIdentifier] = $batchAction;
+        }
+
+        // Reverse the groups
+        ksort($result['groups']);
+
+        return $result;
+    }
+
+    public function getCount()
+    {
+        if (null === $this->state) {
+            throw new InvalidStateException('The DataTable does not know its state yet, did you call handleRequest?');
+        }
+        $builder = $this->getAdapter()->createQueryBuilder($this->state);
+        $this->getAdapter()->buildCriteria($builder, $this->state);
+        return $this->getAdapter()->getCount($builder, $builder->getRootAliases()[0]);
+    }
+
+    public function getIds($limit = null)
+    {
+        /* Old method
+
+        $builder = $this->getAdapter()->createQueryBuilder($this->state);
+        $this->getAdapter()->buildCriteria($builder, $this->state);
+        return $this->getAdapter()->getIds($builder);
+
+        */
+
+        if (null === $this->state) {
+            throw new InvalidStateException('The DataTable does not know its state yet, did you call handleRequest?');
+        }
+        $builder = $this->getAdapter()->createQueryBuilder($this->state);
+        $this->getAdapter()->buildCriteria($builder, $this->state);
+        if ($limit) {
+            $builder->setMaxResults($limit);
+
+            // Orderby is needed only with limit
+            foreach ($this->state->getOrderBy() as list($column, $direction)) {
+                /** @var AbstractColumn $column */
+                if ($column->isOrderable()) {
+                    $builder->addOrderBy($column->getOrderField(), $direction);
+                }
+            }
+        }
+
+        $ids = [];
+        foreach ($builder->select($builder->getRootAliases()[0].'.id')->getQuery()->getResult() as $item) {
+            $ids[$item['id']] = true;
+        }
+
+        return array_keys($ids);
+    }
+
 }

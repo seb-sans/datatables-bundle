@@ -81,6 +81,23 @@ abstract class AbstractColumn
         return $value;
     }
 
+    /**
+     * Apply final modifications before rendering to result.
+     *
+     * @param mixed $value
+     * @return mixed|string
+     */
+    public function renderSummary($value)
+    {
+        if (is_string($render = $this->options['renderSummary'])) {
+            return sprintf($render, $value);
+        } elseif (is_callable($render)) {
+            return call_user_func($render, $value);
+        }
+
+        return $value;
+    }
+
     abstract public function normalize(mixed $value): mixed;
 
     protected function configureOptions(OptionsResolver $resolver): static
@@ -92,6 +109,7 @@ abstract class AbstractColumn
                 'field' => null,
                 'propertyPath' => null,
                 'visible' => true,
+                'exportable' => null,
                 'orderable' => null,
                 'orderField' => null,
                 'searchable' => null,
@@ -99,6 +117,7 @@ abstract class AbstractColumn
                 'filter' => null,
                 'className' => null,
                 'render' => null,
+                'renderSummary' => null,
                 'leftExpr' => null,
                 'operator' => '=',
                 'rightExpr' => null,
@@ -110,6 +129,7 @@ abstract class AbstractColumn
             ->setAllowedTypes('field', ['null', 'string'])
             ->setAllowedTypes('propertyPath', ['null', 'string'])
             ->setAllowedTypes('visible', 'boolean')
+            ->setAllowedTypes('exportable', ['null', 'boolean'])
             ->setAllowedTypes('orderable', ['null', 'boolean'])
             ->setAllowedTypes('orderField', ['null', 'string'])
             ->setAllowedTypes('searchable', ['null', 'boolean'])
@@ -117,6 +137,7 @@ abstract class AbstractColumn
             ->setAllowedTypes('filter', ['null', AbstractFilter::class])
             ->setAllowedTypes('className', ['null', 'string'])
             ->setAllowedTypes('render', ['null', 'string', 'callable'])
+            ->setAllowedTypes('renderSummary', ['null', 'string', 'callable'])
             ->setAllowedTypes('operator', ['string'])
             ->setAllowedTypes('leftExpr', ['null', 'string', 'callable'])
             ->setAllowedTypes('rightExpr', ['null', 'string', 'callable'])
@@ -162,6 +183,11 @@ abstract class AbstractColumn
     public function isVisible(): bool
     {
         return $this->options['visible'];
+    }
+
+    public function isExportable(): bool
+    {
+        return $this->options['exportable'] === false ? false : true;
     }
 
     public function isSearchable(): bool
@@ -240,6 +266,12 @@ abstract class AbstractColumn
         $this->options[$name] = $value;
 
         return $this;
+    }
+
+    public function getOption(string $name): mixed
+    {
+
+        return $this->options[$name] ?? null;
     }
 
     public function isValidForSearch(mixed $value): bool

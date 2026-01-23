@@ -25,6 +25,11 @@ interface ResultSetInterface
     public function getTotalRecords(): int;
 
     /**
+     * Retrieves the Sum() for visible number columns for all records in the original data.
+     */
+    public function getTotalSummary(): \Iterator;
+
+    /**
      * Retrieves the number of records available after applying filters.
      */
     public function getTotalDisplayRecords(): int;
@@ -33,4 +38,9 @@ interface ResultSetInterface
      * Returns the raw data in the result set.
      */
     public function getData(): \Iterator;
+
+    /**
+     * Retrieves the error message
+     */
+    public function getError(): ?string;
 }

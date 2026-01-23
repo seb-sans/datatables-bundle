@@ -64,7 +64,7 @@ class ORMAdapter extends AbstractAdapter
     /** @var QueryBuilderProcessorInterface[] */
     protected array $criteriaProcessors = [];
 
-    public function __construct(?ManagerRegistry $registry = null)
+    public function __construct(ManagerRegistry $registry)
     {
         if (null === $registry) {
             throw new MissingDependencyException('Install doctrine/doctrine-bundle to use the ORMAdapter');
@@ -199,14 +199,14 @@ class ORMAdapter extends AbstractAdapter
         }
     }
 
-    protected function buildCriteria(QueryBuilder $queryBuilder, DataTableState $state): void
+    public function buildCriteria(QueryBuilder $queryBuilder, DataTableState $state): void
     {
         foreach ($this->criteriaProcessors as $provider) {
             $provider->process($queryBuilder, $state);
         }
     }
 
-    protected function createQueryBuilder(DataTableState $state): QueryBuilder
+    public function createQueryBuilder(DataTableState $state): QueryBuilder
     {
         $queryBuilder = $this->manager->createQueryBuilder();
 

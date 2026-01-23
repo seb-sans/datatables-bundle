@@ -63,7 +63,15 @@
                 method: config.method,
                 data: {
                     _dt: config.name,
-                    _init: true
+                    _init: true,
+                    _conf: options.getConfiguration(),
+                    _dql: options.getDQL(),
+                    _showHidden: options.getShowHidden(),
+                    _showSummary: options.getShowSummary(),
+                    search: {
+                        value: options.getInitialSearch(),
+                        regexp: false
+                    },
                 }
             }).done(function(data) {
                 var baseState;
@@ -87,10 +95,35 @@
                             }
                         } else {
                             request._dt = config.name;
+
+                            if (typeof options.getDQL === 'function' ) {
+                                request._dql = options.getDQL();
+                            }
+
+                            if (typeof options.getShowHidden === 'function' ) {
+                                request._showHidden = options.getShowHidden() ? 1 : 0;
+                            }
+
+                            if (typeof options.getShowSummary === 'function' ) {
+                                request._showSummary = options.getShowSummary() ? 1 : 0;
+                            }
+
+                            // Column visibility
+                            var st = $(this).DataTable().state();
+                            for (var i = 0; i < request.columns.length; ++i) {
+                                let colIndex = st.ColReorder[i];
+                                request.columns[i].visible = typeof st.columns[colIndex] !== "undefined" && typeof st.columns[colIndex].visible !== 'undefined' && st.columns[colIndex].visible;
+                            }
+
                             $.ajax(typeof config.url === 'function' ? config.url(dt) : config.url, {
                                 method: config.method,
                                 data: request
                             }).done(function(data) {
+                                if (data.error) {
+                                    $(root).find('pre.ace_editor').css('background-color', '#f1b0b7');
+                                } else {
+                                    $(root).find('pre.ace_editor').css('background-color', 'inherit');
+                                }
                                 drawCallback(data);
                             })
                         }
@@ -155,6 +188,40 @@
 
         return function(e, dt) {
             const params = $.param($.extend({}, dt.ajax.params(), {'_dt': settings.name, '_exporter': exporterName}));
+
+            // Column visibility
+            var state = dt.state();
+            for (var i = 0; i < params.columns.length; ++i) {
+                let colIndex = state.ColReorder[i];
+                params.columns[i].visible = typeof state.columns[colIndex].visible !== 'undefined' && state.columns[colIndex].visible;
+            }
+
+            if (typeof params._dql === 'undefined') {
+                $container = $(dt.containers()).closest('.datatable-container');
+                params._dql = $container.data('dql');
+            }
+
+            // Selection
+            if (selected.length > 0) {
+                params._dql = '#id# IN(' + selected.join(', ') + ')';
+            }
+
+            if (typeof params._showHidden === 'undefined') {
+                $container = $(dt.containers()).closest('.datatable-container');
+                params._showHidden = $container.find('div.hidden-switch input').prop('checked') ? 1 : 0;
+            }
+
+            if (typeof params._showSummary === 'undefined') {
+                $container = $(dt.containers()).closest('.datatable-container');
+                params._showSummary = $container.find('div.summary-switch input').prop('checked') ? 1 : 0;
+            }
+
+            const paramString = $.param(params)
+
+            var dialog = bootbox.dialog({
+                message: '<div class="text-center p-4"><i class="fa fa-spin fa-spinner"></i> Chargement...</div>',
+                closeButton: false
+            })
 
             // Credit: https://stackoverflow.com/a/23797348
             const xhr = new XMLHttpRequest();

@@ -16,6 +16,7 @@ use Omines\DataTablesBundle\DependencyInjection\Instantiator;
 use Omines\DataTablesBundle\Exporter\DataTableExporterManager;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 
 class DataTableFactory
 {
@@ -73,6 +74,16 @@ class DataTableFactory
         }
 
         $type->configure($dataTable, $typeOptions);
+
+        /* seb-sans : Automatic name based on type */
+        $slugger = new AsciiSlugger('fr', [
+            'fr' => [
+                ',' => 'comma',
+                '.' => 'point'
+            ]
+        ]);
+        $dataTable->setName(strtolower($slugger->slug($name)->toString()));
+        $dataTable->setType($type);
 
         return $dataTable;
     }
