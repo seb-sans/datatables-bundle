@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -67,10 +68,18 @@ class DataTableExporterManager
     {
         $file = $this->getExport();
 
+        $slugger = new AsciiSlugger('fr', [
+            'fr' => [
+                ',' => 'comma',
+                '.' => 'point'
+            ]
+        ]);
+        $customFilename = $slugger->slug($this->dataTable->getConfiguration()->getName()).'_'.time().'.'.$file->getExtension();
+
         $response = new BinaryFileResponse($file);
         $response->deleteFileAfterSend(true);
         $response->headers->set('Content-Type', $this->getExporter()->getMimeType());
-        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $response->getFile()->getFilename());
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $customFilename);
 
         $this->dataTable->getEventDispatcher()->dispatch(new DataTableExporterResponseEvent($response), DataTableExporterEvents::PRE_RESPONSE);
 
@@ -122,8 +131,23 @@ class DataTableExporterManager
     {
         $columns = [];
 
-        foreach ($this->dataTable->getColumns() as $column) {
-            $columns[] = $this->translator->trans($column->getLabel(), [], $this->dataTable->getTranslationDomain());
+        foreach ($this->dataTable->getState()->getOrderedColumns() as $column) {
+            if ($column->isVisible() && $column->isExportable()) {
+                $columns[] = $this->translator->trans($column->getLabel(), [], $this->dataTable->getTranslationDomain());
+            }
+        }
+
+        return $columns;
+    }
+
+    private function getColumnIdentifiers(): array
+    {
+        $columns = [];
+
+        foreach ($this->dataTable->getState()->getOrderedColumns() as $column) {
+            if ($column->isVisible() && $column->isExportable()) {
+                $columns[] = $column->getName();
+            }
         }
 
         return $columns;
@@ -142,12 +166,20 @@ class DataTableExporterManager
             ->getData($this->dataTable->getState()->setStart(0)->setLength(null), raw: $raw)
             ->getData();
 
+        $columnIdentifiers = $this->getColumnIdentifiers();
+        dump($columnIdentifiers);
+
         foreach ($data as $row) {
             if (array_key_exists('DT_RowId', $row)) {
                 unset($row['DT_RowId']);
             }
 
-            yield $row;
+            $filtered = [];
+            foreach ($columnIdentifiers as $identifier) {
+                $filtered[$identifier] = $row[$identifier];
+            }
+
+            yield $filtered;
         }
     }
 }
