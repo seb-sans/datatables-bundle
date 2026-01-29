@@ -167,7 +167,6 @@ class DataTableExporterManager
             ->getData();
 
         $columnIdentifiers = $this->getColumnIdentifiers();
-        dump($columnIdentifiers);
 
         foreach ($data as $row) {
             if (array_key_exists('DT_RowId', $row)) {
