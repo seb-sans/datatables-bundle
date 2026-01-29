@@ -27,6 +27,17 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class ExcelExporter extends AbstractDataTableExporter
 {
+    public const EXCEL_FORMAT_NUMBER = '# ### ### ##0';
+    public const EXCEL_FORMAT_NUMBER_0 = '# ### ### ##0.0';
+    public const EXCEL_FORMAT_NUMBER_00 = '# ### ### ##0.00';
+
+    public const EXCEL_FORMAT_CURRENCY_EUR = '# ### ### ##0_-"€"';
+    public const EXCEL_FORMAT_CURRENCY_EUR_00 = '# ### ### ##0.00_-"€"';
+
+    public const EXCEL_FORMAT_PERCENTAGE = '0%';
+    public const EXCEL_FORMAT_PERCENTAGE_0 = '0.0%';
+    public const EXCEL_FORMAT_PERCENTAGE_00 = '0.00%';
+
     #[\Override]
     public function export(array $columnNames, \Iterator $data, array $columnOptions): \SplFileInfo
     {
@@ -56,14 +67,14 @@ class ExcelExporter extends AbstractDataTableExporter
                     $value = floatval($value);
                     $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $value);
                     if (floor($value) != $value) {
-                        $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(StatisticBundle::EXCEL_FORMAT_NUMBER_00);
+                        $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_NUMBER_00);
                     } else {
-                        $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(StatisticBundle::EXCEL_FORMAT_NUMBER);
+                        $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_NUMBER);
                     }
                 } elseif ($value != null && is_string($value) && str_ends_with($value, '€')) {
                     $value = str_replace([' ', '€'], '', $value);
                     $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $value);
-                    $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(StatisticBundle::EXCEL_FORMAT_CURRENCY_EUR);
+                    $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_CURRENCY_EUR);
                 } else {
                     $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $htmlHelper->toRichTextObject($value));
                 }
