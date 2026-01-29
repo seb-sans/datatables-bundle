@@ -68,6 +68,14 @@ class AutomaticQueryBuilder implements QueryBuilderProcessorInterface
             }
         }
 
+        if ($state->getGlobalSearch()) {
+            foreach ($state->getDataTable()->getColumns() as $column) {
+                if ($column->isGlobalSearchable()) {
+                    $this->processColumn($column);
+                }
+            }
+        }
+
         $this->handleDQL($builder, $state);
         $this->handleOrderBy($builder, $state);
 
