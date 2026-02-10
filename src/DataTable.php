@@ -353,7 +353,9 @@ class DataTable
 
         // Avoid "Malformed UTF-8 characters, possibly incorrectly encoded"
         foreach ($response['data'] as $key => $value) {
-            $response['data'][$key] = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            if (is_array($value) || is_string($value)) {
+                $response['data'][$key] = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
         }
 
         return new JsonResponse($response);
