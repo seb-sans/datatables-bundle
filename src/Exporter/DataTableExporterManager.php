@@ -12,9 +12,13 @@ declare(strict_types=1);
 
 namespace Omines\DataTablesBundle\Exporter;
 
+use App\Entity\System;
+use App\Entity\User;
+use Doctrine\Persistence\ManagerRegistry;
 use Omines\DataTablesBundle\DataTable;
 use Omines\DataTablesBundle\Exception\UnknownDataTableExporterException;
 use Omines\DataTablesBundle\Exporter\Event\DataTableExporterResponseEvent;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
@@ -41,10 +45,15 @@ class DataTableExporterManager
     /** @var TranslatorInterface */
     private $translator;
 
-    public function __construct(DataTableExporterCollection $exporterCollection, TranslatorInterface $translator)
+    private ManagerRegistry $managerRegistry;
+    private Security $security;
+
+    public function __construct(DataTableExporterCollection $exporterCollection, TranslatorInterface $translator, ManagerRegistry $managerRegistry, Security $security)
     {
         $this->exporterCollection = $exporterCollection;
         $this->translator = $translator;
+        $this->managerRegistry = $managerRegistry;
+        $this->security = $security;
     }
 
     public function setExporterName(string $exporterName): static
@@ -75,6 +84,18 @@ class DataTableExporterManager
             ]
         ]);
         $customFilename = $slugger->slug($this->dataTable->getConfiguration()->getName()).'_'.time().'.'.$file->getExtension();
+
+        if ($this->security->getUser() && $this->security->getUser()->getId()) {
+            $userId = $this->security->getUser()->getId();
+            $this->managerRegistry->getManager()->clear();
+            $userRepository = $this->managerRegistry->getRepository(User::class);
+            $user = $userRepository->findOneBy(['id' => $userId]);
+            $system = $this->managerRegistry->getRepository(System::class)->findOneBy(['id' => 1]);
+            // Store in user drive ?
+            if ($system && $system->isDriveModuleEnabled() && $user) {
+                $userRepository->storeExportFile($user, $file->getPathname(), $customFilename, $this->getExporter()->getMimeType());
+            }
+        }
 
         $response = new BinaryFileResponse($file);
         $response->deleteFileAfterSend(true);
