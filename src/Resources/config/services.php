@@ -45,8 +45,6 @@ return static function (ContainerConfigurator $container) {
         ->args([
             service(\Omines\DataTablesBundle\Exporter\DataTableExporterCollection::class),
             service('translator'),
-            service('doctrine'),
-            service('security'),
         ]);
 
     $services->set(\Omines\DataTablesBundle\Exporter\Excel\ExcelExporter::class)
