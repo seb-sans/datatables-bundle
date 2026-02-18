@@ -69,7 +69,12 @@ abstract class AbstractAdapter implements AdapterInterface
                         }
                     }
                     if (null !== $transformer) {
-                        $row = call_user_func($transformer, $row, $result);
+                        $transformed = call_user_func($transformer, $row, $result);
+                        if ($transformed === false || $transformed === null) {
+                            // Skip row if transformer returned false or null
+                            continue;
+                        }
+                        $row = $transformed;
                     }
                     yield $row;
                 }
