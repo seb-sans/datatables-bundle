@@ -57,26 +57,26 @@ class ExcelExporter extends AbstractDataTableExporter
             $colIndex = 1;
             foreach ($row as $value) {
                 if ($value instanceof DateTime) {
-                    $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $value->format('d/m/Y'));
-                    $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DATETIME);
+                    $sheet->setCellValue([$colIndex, $rowIndex], $value->format('d/m/Y'));
+                    $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DATETIME);
                 }
                 else if (is_array($value)) {
-                    $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $htmlHelper->toRichTextObject(implode(', ', $value)));
+                    $sheet->setCellValue([$colIndex, $rowIndex], $htmlHelper->toRichTextObject(implode(', ', $value)));
                 }
                 else if ($value != null && is_numeric($value)) {
                     $value = floatval($value);
-                    $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $value);
+                    $sheet->setCellValue([$colIndex, $rowIndex], $value);
                     if (floor($value) != $value) {
-                        $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_NUMBER_00);
+                        $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_NUMBER_00);
                     } else {
-                        $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_NUMBER);
+                        $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_NUMBER);
                     }
                 } elseif ($value != null && is_string($value) && str_ends_with($value, '€')) {
                     $value = str_replace([' ', '€'], '', $value);
-                    $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $value);
-                    $sheet->getStyleByColumnAndRow($colIndex, $rowIndex)->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_CURRENCY_EUR);
+                    $sheet->setCellValue([$colIndex, $rowIndex], $value);
+                    $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_CURRENCY_EUR);
                 } else {
-                    $sheet->setCellValueByColumnAndRow($colIndex, $rowIndex, $htmlHelper->toRichTextObject($value));
+                    $sheet->setCellValue([$colIndex, $rowIndex], $htmlHelper->toRichTextObject($value));
                 }
                 $colIndex++;
             }
