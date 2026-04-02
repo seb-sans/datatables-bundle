@@ -17,6 +17,7 @@ use PhpOffice\PhpSpreadsheet\Cell\CellAddress;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Helper;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -58,7 +59,7 @@ class ExcelExporter extends AbstractDataTableExporter
             foreach ($row as $value) {
                 if ($value instanceof \DateTimeInterface) {
                     $sheet->setCellValue([$colIndex, $rowIndex], $value->format('d/m/Y'));
-                    $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DATETIME);
+                    $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode('d/m/yy h:mm');
                 }
                 else if (is_array($value)) {
                     $sheet->setCellValue([$colIndex, $rowIndex], $htmlHelper->toRichTextObject(implode(', ', $value)));
