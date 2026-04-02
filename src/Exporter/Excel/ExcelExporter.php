@@ -75,8 +75,10 @@ class ExcelExporter extends AbstractDataTableExporter
                     $value = str_replace([' ', '€'], '', $value);
                     $sheet->setCellValue([$colIndex, $rowIndex], $value);
                     $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode(self::EXCEL_FORMAT_CURRENCY_EUR);
-                } else {
+                } else if ($value != null) {
                     $sheet->setCellValue([$colIndex, $rowIndex], $htmlHelper->toRichTextObject($value));
+                } else {
+                    $sheet->setCellValue([$colIndex, $rowIndex], '');
                 }
                 $colIndex++;
             }
@@ -111,5 +113,11 @@ class ExcelExporter extends AbstractDataTableExporter
     public function getName(): string
     {
         return 'excel';
+    }
+
+    #[\Override]
+    public function supportsRawData(): bool
+    {
+        return true;
     }
 }

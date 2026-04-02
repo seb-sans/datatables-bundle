@@ -56,7 +56,7 @@ abstract class AbstractAdapter implements AdapterInterface
                             // Export context
                             if ($column->getName() == 'id' || ($column->isVisible() && $column->isExportable())) {
                                 $value = ($mapping && $this->accessor->isReadable($result, $mapping)) ? $this->accessor->getValue($result, $mapping) : null;
-                                $row[$column->getName()] = $column->transform($value, $result, false, false);
+                                $row[$column->getName()] = $column->transform($value, $result, $raw, false);
                             }
                         } else {
                             // Display context

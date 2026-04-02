@@ -121,7 +121,7 @@ abstract class AbstractColumn
                 'leftExpr' => null,
                 'operator' => '=',
                 'rightExpr' => null,
-                'enableRawExport' => false,
+                'enableRawExport' => true,
                 'exporterOptions' => [],
             ])
             ->setAllowedTypes('label', ['null', 'string'])
