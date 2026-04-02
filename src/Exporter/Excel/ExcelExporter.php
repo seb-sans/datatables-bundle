@@ -56,7 +56,7 @@ class ExcelExporter extends AbstractDataTableExporter
         foreach ($data as $row) {
             $colIndex = 1;
             foreach ($row as $value) {
-                if ($value instanceof DateTime) {
+                if ($value instanceof \DateTimeInterface) {
                     $sheet->setCellValue([$colIndex, $rowIndex], $value->format('d/m/Y'));
                     $sheet->getStyle([$colIndex, $rowIndex])->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DATETIME);
                 }
