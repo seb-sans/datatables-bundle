@@ -22,13 +22,13 @@ use Omines\DataTablesBundle\DataTableState;
  */
 class AdapterQuery
 {
-    private ?int $totalRows;
+    private ?int $totalRows = null;
     private array $totalSummary = [];
-    private ?int $filteredRows;
+    private ?int $filteredRows = null;
     private ?string $identifierPropertyPath = null;
 
     /** @var array<string, mixed> */
-    private array $data;
+    private array $data = [];
 
     public function __construct(private readonly DataTableState $state)
     {

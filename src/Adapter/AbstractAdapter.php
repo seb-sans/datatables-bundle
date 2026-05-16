@@ -12,7 +12,6 @@ declare(strict_types=1);
 
 namespace Omines\DataTablesBundle\Adapter;
 
-use Omines\DataTablesBundle\Adapter\ArrayResultSet;
 use Omines\DataTablesBundle\Column\AbstractColumn;
 use Omines\DataTablesBundle\DataTableState;
 use Symfony\Component\PropertyAccess\PropertyAccess;
@@ -36,58 +35,70 @@ abstract class AbstractAdapter implements AdapterInterface
     {
         $query = new AdapterQuery($state);
 
-        $this->prepareQuery($query);
-        $propertyMap = $this->getPropertyMap($query);
+        try {
+            $this->prepareQuery($query);
+            $propertyMap = $this->getPropertyMap($query);
+        } catch (\Exception $e) {
+            // User-editable filters can temporarily produce invalid adapter queries.
+            return $this->createErrorResultSet($query, $e);
+        }
 
         $transformer = $state->getDataTable()->getTransformer();
         $identifier = $query->getIdentifierPropertyPath();
 
-        try {
-            $data = (function () use ($query, $identifier, $transformer, $propertyMap, $raw, $state) {
-                foreach ($this->getResults($query) as $result) {
-                    $row = [];
-                    if (!empty($identifier)) {
-                        $row['DT_RowId'] = $this->accessor->getValue($result, $identifier);
-                    }
-
-                    /** @var AbstractColumn $column */
-                    foreach ($propertyMap as list($column, $mapping)) {
-                        if ($state->getExporterName()) {
-                            // Export context
-                            if ($column->getName() == 'id' || ($column->isVisible() && $column->isExportable())) {
-                                $value = ($mapping && $this->accessor->isReadable($result, $mapping)) ? $this->accessor->getValue($result, $mapping) : null;
-                                $row[$column->getName()] = $column->transform($value, $result, $raw, false);
-                            }
-                        } else {
-                            // Display context
-                            if ($column->getName() == 'id' || $column->isVisible()) {
-                                $value = ($mapping && $this->accessor->isReadable($result, $mapping)) ? $this->accessor->getValue($result, $mapping) : null;
-                                $row[$column->getName()] = $column->transform($value, $result);
-                            } else {
-                                $row[$column->getName()] = '<i class="fas fa-circle-notch fa-spin"></i>';
-                            }
-                        }
-                    }
-                    if (null !== $transformer) {
-                        $transformed = call_user_func($transformer, $row, $result);
-                        if ($transformed === false || $transformed === null) {
-                            // Skip row if transformer returned false or null
-                            continue;
-                        }
-                        $row = $transformed;
-                    }
-                    yield $row;
+        $data = (function () use ($query, $identifier, $transformer, $propertyMap, $raw, $state) {
+            foreach ($this->getResults($query) as $result) {
+                $row = [];
+                if (!empty($identifier)) {
+                    $row['DT_RowId'] = $this->accessor->getValue($result, $identifier);
                 }
-            })();
-        } catch(\Exception $e) {
-            return new ArrayResultSet($rows, $query->getTotalRows(), $query->getFilteredRows(), $e->getMessage(), $query->getTotalSummary());
-        }
+
+                /** @var AbstractColumn $column */
+                foreach ($propertyMap as list($column, $mapping)) {
+                    if ($state->getExporterName()) {
+                        // Export context
+                        if ($column->getName() == 'id' || ($column->isVisible() && $column->isExportable())) {
+                            $value = ($mapping && $this->accessor->isReadable($result, $mapping)) ? $this->accessor->getValue($result, $mapping) : null;
+                            $row[$column->getName()] = $column->transform($value, $result, $raw, false);
+                        }
+                    } else {
+                        // Display context
+                        if ($column->getName() == 'id' || $column->isVisible()) {
+                            $value = ($mapping && $this->accessor->isReadable($result, $mapping)) ? $this->accessor->getValue($result, $mapping) : null;
+                            $row[$column->getName()] = $column->transform($value, $result);
+                        } else {
+                            $row[$column->getName()] = '<i class="fas fa-circle-notch fa-spin"></i>';
+                        }
+                    }
+                }
+                if (null !== $transformer) {
+                    $transformed = call_user_func($transformer, $row, $result);
+                    if ($transformed === false || $transformed === null) {
+                        // Skip row if transformer returned false or null
+                        continue;
+                    }
+                    $row = $transformed;
+                }
+                yield $row;
+            }
+        })();
 
         if (null === $query->getTotalRows() || null === $query->getFilteredRows()) {
             throw new \LogicException('Adapter did not set row counts');
         }
 
         return new ResultSet($data, $query->getTotalRows(), $query->getFilteredRows(), null, $query->getTotalSummary());
+    }
+
+    private function createErrorResultSet(AdapterQuery $query, \Exception $exception): ResultSetInterface
+    {
+        return new ResultSet(
+            new \ArrayIterator([]),
+            $query->getTotalRows() ?? 0,
+            $query->getFilteredRows() ?? 0,
+            $exception->getMessage(),
+            $query->getTotalSummary()
+        );
     }
 
     /**
